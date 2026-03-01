@@ -14,4 +14,4 @@ if [ ! -f "$SERVERS_FILE" ]; then
 fi
 
 # 输出时将 token 替换为 hint（最后 4 位）
-jq '{servers: [.servers[] | {name, host, port, token_hint: (.token[-4:])}]}' "$SERVERS_FILE"
+jq '{servers: [.[] | {name, server_url, token_hint: (.token[-4:])}]}' "$SERVERS_FILE"

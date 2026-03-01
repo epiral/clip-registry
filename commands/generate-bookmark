@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# 生成 Clip 书签配置
+# stdin: {"server": "home", "clip_id": "xxx"}
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+DATA_DIR="${SCRIPT_DIR}/../data"
+SERVERS_FILE="${DATA_DIR}/servers.json"
+
+if [ ! -f "$SERVERS_FILE" ]; then
+  echo '{"error": "no servers configured, use add-server first"}' >&2
+  exit 1
+fi
+
+INPUT=$(cat)
+SERVER_NAME=$(echo "$INPUT" | jq -r '.server // empty')
+CLIP_ID=$(echo "$INPUT" | jq -r '.clip_id // empty')
+
+if [ -z "$SERVER_NAME" ] || [ -z "$CLIP_ID" ]; then
+  echo '{"error": "missing required fields: server, clip_id"}' >&2
+  exit 1
+fi
+
+SERVER=$(jq -c --arg name "$SERVER_NAME" '.[] | select(.name == $name)' "$SERVERS_FILE")
+if [ -z "$SERVER" ]; then
+  echo "{\"error\": \"server '${SERVER_NAME}' not found\"}" >&2
+  exit 1
+fi
+
+SERVER_URL=$(echo "$SERVER" | jq -r '.server_url')
+TOKEN=$(echo "$SERVER" | jq -r '.token')
+
+GENERATE_RESPONSE=$(curl -s --connect-timeout 5 --max-time 10 \
+  -X POST "${SERVER_URL}/pinix.v1.AdminService/GenerateToken" \
+  -H "Authorization: Bearer ${TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d "{\"clipId\":\"${CLIP_ID}\",\"label\":\"registry-auto\"}" 2>&1) || true
+
+NEW_TOKEN=$(echo "$GENERATE_RESPONSE" | jq -r '.token // empty' 2>/dev/null || true)
+if [ -z "$NEW_TOKEN" ]; then
+  ERROR_MSG=$(echo "$GENERATE_RESPONSE" | jq -r '.message // .error // "generate token failed"' 2>/dev/null || echo "generate token failed")
+  echo "{\"error\": \"${ERROR_MSG}\"}" >&2
+  exit 1
+fi
+
+INFO_RESPONSE=$(curl -s --connect-timeout 5 --max-time 10 \
+  -X POST "${SERVER_URL}/pinix.v1.ClipService/GetInfo" \
+  -H "Authorization: Bearer ${NEW_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{}' 2>&1) || true
+
+CLIP_NAME=$(echo "$INFO_RESPONSE" | jq -r '.name // empty' 2>/dev/null || true)
+if [ -z "$CLIP_NAME" ]; then
+  ERROR_MSG=$(echo "$INFO_RESPONSE" | jq -r '.message // .error // "get info failed"' 2>/dev/null || echo "get info failed")
+  echo "{\"error\": \"${ERROR_MSG}\"}" >&2
+  exit 1
+fi
+
+jq -n --arg name "$CLIP_NAME" --arg server_url "$SERVER_URL" --arg token "$NEW_TOKEN" \
+  '{name: $name, server_url: $server_url, token: $token}'

@@ -21,14 +21,14 @@ if [ ! -f "$SERVERS_FILE" ]; then
 fi
 
 # 检查是否存在
-EXISTING=$(jq -r --arg name "$NAME" '.servers[] | select(.name == $name) | .name' "$SERVERS_FILE")
+EXISTING=$(jq -r --arg name "$NAME" '.[] | select(.name == $name) | .name' "$SERVERS_FILE")
 if [ -z "$EXISTING" ]; then
   echo "{\"error\": \"server '${NAME}' not found\"}" >&2
   exit 1
 fi
 
 # 移除
-jq --arg name "$NAME" '.servers = [.servers[] | select(.name != $name)]' \
+jq --arg name "$NAME" '[.[] | select(.name != $name)]' \
   "$SERVERS_FILE" > "${SERVERS_FILE}.tmp" && mv "${SERVERS_FILE}.tmp" "$SERVERS_FILE"
 
 echo "{\"ok\": true, \"message\": \"server '${NAME}' removed\"}"

@@ -1,10 +1,1 @@
-{
-  "servers": [
-    {
-      "name": "home",
-      "host": "100.66.47.40",
-      "port": 9875,
-      "token": "cbb95244c76ce13c8b2e7d80ee42177e20b86fd1d775f15295fb3019fe884281"
-    }
-  ]
-}
+[]

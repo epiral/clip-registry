@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # 添加一个 Server 连接配置到 data/servers.json
-# stdin: {"name": "home", "host": "100.66.47.40", "port": 9875, "token": "super-token-xxx"}
+# stdin: {"name": "home", "server_url": "http://100.66.47.40:9875", "token": "super-token-xxx"}
 
 set -euo pipefail
 
@@ -13,31 +13,30 @@ INPUT=$(cat)
 
 # 校验必填字段
 NAME=$(echo "$INPUT" | jq -r '.name // empty')
-HOST=$(echo "$INPUT" | jq -r '.host // empty')
-PORT=$(echo "$INPUT" | jq -r '.port // empty')
+SERVER_URL=$(echo "$INPUT" | jq -r '.server_url // empty')
 TOKEN=$(echo "$INPUT" | jq -r '.token // empty')
 
-if [ -z "$NAME" ] || [ -z "$HOST" ] || [ -z "$PORT" ] || [ -z "$TOKEN" ]; then
-  echo '{"error": "missing required fields: name, host, port, token"}' >&2
+if [ -z "$NAME" ] || [ -z "$SERVER_URL" ] || [ -z "$TOKEN" ]; then
+  echo '{"error": "missing required fields: name, server_url, token"}' >&2
   exit 1
 fi
 
 # 确保 data 目录和文件存在
 mkdir -p "$DATA_DIR"
 if [ ! -f "$SERVERS_FILE" ]; then
-  echo '{"servers": []}' > "$SERVERS_FILE"
+  echo '[]' > "$SERVERS_FILE"
 fi
 
 # 检查是否已存在同名 server
-EXISTING=$(jq -r --arg name "$NAME" '.servers[] | select(.name == $name) | .name' "$SERVERS_FILE")
+EXISTING=$(jq -r --arg name "$NAME" '.[] | select(.name == $name) | .name' "$SERVERS_FILE")
 if [ -n "$EXISTING" ]; then
   echo "{\"error\": \"server '${NAME}' already exists, remove it first\"}" >&2
   exit 1
 fi
 
 # 追加新 server
-jq --arg name "$NAME" --arg host "$HOST" --argjson port "$PORT" --arg token "$TOKEN" \
-  '.servers += [{"name": $name, "host": $host, "port": $port, "token": $token}]' \
+jq --arg name "$NAME" --arg server_url "$SERVER_URL" --arg token "$TOKEN" \
+  '. += [{"name": $name, "server_url": $server_url, "token": $token}]' \
   "$SERVERS_FILE" > "${SERVERS_FILE}.tmp" && mv "${SERVERS_FILE}.tmp" "$SERVERS_FILE"
 
 echo "{\"ok\": true, \"message\": \"server '${NAME}' added\"}"
