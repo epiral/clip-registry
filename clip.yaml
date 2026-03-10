@@ -1,0 +1,5 @@
+name: registry
+version: "1.0.0"
+description: Clip Registry — discover and manage Pinix servers and their clips
+label: Registry
+hasWeb: true

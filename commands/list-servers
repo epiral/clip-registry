@@ -1,17 +1,2 @@
-#!/usr/bin/env bash
-# 列出已配置的 Server（不暴露 token 明文，仅显示 hint）
-# stdin: 无
-# stdout: JSON 数组
-
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SERVERS_FILE="${SCRIPT_DIR}/../data/servers.json"
-
-if [ ! -f "$SERVERS_FILE" ]; then
-  echo '{"servers": []}'
-  exit 0
-fi
-
-# 输出时将 token 替换为 hint（最后 4 位）
-jq '{servers: [.[] | {name, server_url, token_hint: (.token[-4:])}]}' "$SERVERS_FILE"
+#!/bin/sh
+exec "$(dirname "$0")/../bin/registry" list-servers "$@"

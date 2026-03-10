@@ -41,7 +41,12 @@ async function refreshData() {
 
 async function invoke(command, stdin = '{}') {
     try {
-        const result = await window.Bridge.invoke(command, stdin);
+        // iOS Bridge: action='invoke', body={name, stdin}
+        // Desktop Bridge: action=command, payload={stdin}
+        const isIOS = !!window.webkit;
+        const result = isIOS
+            ? await window.Bridge.invoke('invoke', { name: command, stdin })
+            : await window.Bridge.invoke(command, { stdin });
         if (result.exitCode !== 0) {
             showNotification(`Error: ${result.stderr || 'Unknown error'}`);
             return null;
@@ -150,12 +155,15 @@ async function handleGenerateBookmark(server, clip_id) {
     if (result) {
         const json = JSON.stringify(result, null, 2);
         try {
-            await navigator.clipboard.writeText(json);
-            showNotification('Copied to clipboard!');
+            if (window.webkit) {
+                await window.Bridge.invoke('ios.clipboardWrite', { text: json });
+            } else {
+                await navigator.clipboard.writeText(json);
+            }
+            showNotification('Bookmark copied!');
         } catch (err) {
             console.error('Failed to copy:', err);
-            // Fallback: show the JSON in an alert or something if clipboard fails
-            showNotification('Failed to copy to clipboard. Check console.');
+            showNotification('Failed to copy. Check console.');
             console.log(json);
         }
     }
